@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 
 // ─── ENABLE CORS ──────────────────────────────────────────────────────────────
-// Allow any origin (you can replace '*' with your Lovable URL if you want to lock it down)
+// Allow any origin (or replace '*' with your Lovable URL)
 app.use(cors({ origin: '*' }));
 
 app.use(express.json());
