@@ -10,41 +10,64 @@ app.use(express.json());
 const OPENROUTER_URL = 'https://api.openrouter.ai/v1/chat/completions';
 const MODEL_ID       = 'deepseek-chat-v3-0324:free';
 
-// Get parts list from DeepSeek, including optional requirements
+/**
+ * Calls DeepSeek Chat V3 to get a JSON list of parts + brief reasons.
+ * Returns an array of objects: { part: string, reason: string }.
+ */
 async function getPartsList(budget, useCase, requirements = '') {
-  let prompt = 
-    `User budget: $${budget}. Use case: "${useCase}".`;
-  if (requirements) {
-    prompt += ` Additional requirements: "${requirements}".`;
-  }
-  prompt +=
-    `\nPlease respond with valid JSON:\n\n` +
-    `{\n  "parts": ["Part Name A", "Part Name B", ...]\n}`;
-
-  const payload = {
-    model: MODEL_ID,
-    messages: [
-      { role: 'system', content: 'You are an expert PC‑build assistant.' },
-      { role: 'user',   content: prompt }
-    ]
-  };
-
-  const resp = await axios.post(OPENROUTER_URL, payload, {
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'Content-Type':  'application/json'
+  const messages = [
+    {
+      role: 'system',
+      content: `You are an expert PC‑build assistant. You always return ONLY valid JSON.`
+    },
+    {
+      role: 'user',
+      content:
+        `User budget: $${budget}\n` +
+        `Primary use‑case: ${useCase}\n` +
+        (requirements ? `Additional requirements: ${requirements}\n` : '') +
+        `\nPlease output JSON exactly in this format:\n` +
+        `{\n` +
+        `  "build": [\n` +
+        `    { "part": "Component name", "reason": "Brief one‑sentence reason" },\n` +
+        `    …\n` +
+        `  ]\n` +
+        `}`
     }
-  });
+  ];
 
-  return JSON.parse(resp.data.choices[0].message.content).parts;
+  const resp = await axios.post(
+    OPENROUTER_URL,
+    { model: MODEL_ID, messages },
+    {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type':  'application/json'
+      }
+    }
+  );
+
+  // Parse the assistant’s JSON reply
+  const content = resp.data.choices[0].message.content;
+  return JSON.parse(content).build;
 }
 
-// HTTP endpoint
 app.post('/build', async (req, res) => {
   try {
     const { budget, useCase, additionalRequirements } = req.body;
-    const parts = await getPartsList(budget, useCase, additionalRequirements);
-    const detailed = await Promise.all(parts.map(searchProduct));
+
+    // 1️⃣ Get parts + reasons from DeepSeek
+    const items = await getPartsList(budget, useCase, additionalRequirements);
+
+    // 2️⃣ Enrich each with your affiliate‑tagged Amazon link
+    const detailed = await Promise.all(
+      items.map(async ({ part, reason }) => {
+        const { link } = await searchProduct(part);
+        return { part, reason, link };
+      })
+    );
+
+    // 3️⃣ Return the final build array
     res.json({ build: detailed });
   } catch (err) {
     console.error(err);
