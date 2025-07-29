@@ -14,7 +14,7 @@ app.use(cors({ origin: '*' }));
 
 app.use(express.json());
 
-const OPENROUTER_URL = 'https://api.openrouter.ai/v1/chat/completions';
+const OPENROUTER_URL = 'https://openrouter.ai/v1/chat/completions';
 const MODEL_ID       = 'deepseek-chat-v3-0324:free';
 
 /**
