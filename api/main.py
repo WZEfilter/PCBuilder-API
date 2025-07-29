@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 import requests
-import json
+import os
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -14,8 +14,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-OPENROUTER_KEY = "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"
-AFFILIATE_TAG = "pcai06-20"
+OPENROUTER_KEY = os.getenv("OPENROUTER_KEY")
+AFFILIATE_TAG = os.getenv("AFFILIATE_TAG", "pcai06-20")
+TRACKER_URL = os.getenv("TRACKER_URL", "http://localhost:3000/search?query=")
 
 class BuildRequest(BaseModel):
     budget: int
@@ -51,7 +52,7 @@ async def generate_build(data: BuildRequest):
             if " - " in rest:
                 name, reason = rest.split(" - ", 1)
                 keyword = name.strip()
-                tracker_res = requests.get(f"http://localhost:3000/search?query={keyword}")
+                tracker_res = requests.get(f"{TRACKER_URL}{keyword}")
                 try:
                     link = tracker_res.json().get("link", "#")
                     affiliate_link = link + f"?tag={AFFILIATE_TAG}" if link.startswith("https") else "#"
