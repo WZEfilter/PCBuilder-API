@@ -1,10 +1,17 @@
+// app.js
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
 import { searchProduct } from './tools.js';
 
 dotenv.config();
 const app = express();
+
+// ─── ENABLE CORS ──────────────────────────────────────────────────────────────
+// Allow any origin (you can replace '*' with your Lovable URL if you want to lock it down)
+app.use(cors({ origin: '*' }));
+
 app.use(express.json());
 
 const OPENROUTER_URL = 'https://api.openrouter.ai/v1/chat/completions';
@@ -52,6 +59,7 @@ async function getPartsList(budget, useCase, requirements = '') {
   return JSON.parse(content).build;
 }
 
+// HTTP endpoint
 app.post('/build', async (req, res) => {
   try {
     const { budget, useCase, additionalRequirements } = req.body;
