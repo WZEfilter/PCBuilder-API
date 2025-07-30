@@ -2,7 +2,7 @@
 import { getJson } from 'serpapi';
 
 export async function searchProduct(partName) {
-  // Hit SerpApi's Amazon Search API (uses `k` for the query)
+  // 1️⃣ Use `k` for Amazon queries (not `q`)
   const json = await getJson({
     engine:  'amazon',
     api_key: process.env.SERPAPI_KEY,
@@ -10,19 +10,18 @@ export async function searchProduct(partName) {
     country: 'US'
   });
 
-  // Grab the top result (if any)
   const results = json.shopping_results || [];
   const top     = results.length > 0 ? results[0] : {};
+
+  // 2️⃣ Always return a link field (null if no result)
   if (!top.link) {
-    return { part: partName, error: 'No result found' };
+    return { part: partName, title: null, price: null, link: null };
   }
 
-  // Ensure trailing slash before appending tag
+  // 3️⃣ Append your affiliate tag
   const rawLink       = top.link;
-  const linkWithSlash = rawLink.endsWith('/') ? rawLink : `${rawLink}/`;
-  const url           = new URL(linkWithSlash);
-
-  // Attach your affiliate tag
+  const withSlash     = rawLink.endsWith('/') ? rawLink : `${rawLink}/`;
+  const url           = new URL(withSlash);
   url.searchParams.set('tag', process.env.AFFILIATE_TAG);
 
   return {
