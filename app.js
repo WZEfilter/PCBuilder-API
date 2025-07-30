@@ -8,19 +8,20 @@ import { searchProduct } from './tools.js';
 dotenv.config();
 const app = express();
 
-// Enable CORS for all origins
+// ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+// ─── CONFIG ────────────────────────────────────────────────────────────────────
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL_ID       = 'deepseek/deepseek-chat-v3-0324:free';
 
+// ─── AI CALL ───────────────────────────────────────────────────────────────────
 async function getPartsList(budget, useCase, requirements = '') {
+  console.log('🤖 getPartsList()', { budget, useCase, requirements });
+
   const messages = [
-    {
-      role: 'system',
-      content: 'You are an expert PC‑build assistant. You always return ONLY valid JSON.'
-    },
+    { role: 'system', content: 'You are an expert PC‑build assistant. You always return ONLY valid JSON.' },
     {
       role: 'user',
       content:
@@ -40,7 +41,7 @@ async function getPartsList(budget, useCase, requirements = '') {
   const resp = await axios.post(
     OPENROUTER_URL,
     {
-      model:      MODEL_ID,
+      model:       MODEL_ID,
       messages,
       temperature: 0.7,
       max_tokens:  1000
@@ -53,32 +54,31 @@ async function getPartsList(budget, useCase, requirements = '') {
     }
   );
 
-  // Extract the assistant's raw reply
-  let content = resp.data.choices?.[0]?.message?.content;
-  if (!content) {
-    console.error('No content in response:', resp.data);
-    throw new Error('AI did not return any content');
+  if (!resp.data.choices?.length) {
+    console.error('⚠️ No choices from OpenRouter:', resp.data);
+    throw new Error('AI did not return any completions');
   }
 
-  // Remove markdown code fences if present
-  const fenceMatch = content.match(/```(?:json)?\n([\s\S]*?)```/i);
-  if (fenceMatch) {
-    content = fenceMatch[1];
-  }
-  content = content.trim();
+  const raw = resp.data.choices[0].message.content;
+  console.log('📥 Raw AI content:', raw);
 
-  // Parse JSON
+  // strip markdown fences if present
+  const match = raw.match(/```(?:json)?\n([\s\S]*?)```/i);
+  const jsonText = match ? match[1].trim() : raw.trim();
+
   let parsed;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(jsonText);
   } catch (e) {
-    console.error('Failed to parse JSON:', content);
+    console.error('❌ JSON parse error:', e.message, '\nContent was:', jsonText);
     throw new Error('Invalid JSON from AI');
   }
 
+  console.log('📦 Parsed parts list:', parsed.build);
   return parsed.build;
 }
 
+// ─── ENDPOINTS ─────────────────────────────────────────────────────────────────
 app.post('/build', async (req, res) => {
   console.log('✅ /build called with:', req.body);
 
@@ -88,8 +88,9 @@ app.post('/build', async (req, res) => {
 
     const detailed = await Promise.all(
       items.map(async ({ part, reason }) => {
+        console.log(`🔎 Calling searchProduct("${part}")`);
         const product = await searchProduct(part);
-        console.log(`🔍 searchProduct("${part}") returned:`, product);
+        console.log('🔍 searchProduct returned:', product);
         return { part, reason, link: product.link };
       })
     );
@@ -102,11 +103,11 @@ app.post('/build', async (req, res) => {
   }
 });
 
-// Health‑check endpoint
 app.get('/', (req, res) => {
   res.send('AI PC Builder API is up! POST to /build with JSON.');
 });
 
+// ─── START SERVER ──────────────────────────────────────────────────────────────
 app.listen(process.env.PORT, () => {
   console.log(`🚀 Listening on http://localhost:${process.env.PORT}`);
 });
