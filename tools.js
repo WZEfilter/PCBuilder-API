@@ -2,11 +2,11 @@
 import { getJson } from 'serpapi';
 
 export async function searchProduct(partName) {
-  // Fetch live Amazon results via SerpAPI
+  // Hit SerpApi's Amazon Search API (uses `k` for the query)
   const json = await getJson({
     engine:  'amazon',
     api_key: process.env.SERPAPI_KEY,
-    q:       partName,
+    k:       partName,
     country: 'US'
   });
 
@@ -17,12 +17,12 @@ export async function searchProduct(partName) {
     return { part: partName, error: 'No result found' };
   }
 
-  // Ensure there's a trailing slash before adding our tag
+  // Ensure trailing slash before appending tag
   const rawLink       = top.link;
   const linkWithSlash = rawLink.endsWith('/') ? rawLink : `${rawLink}/`;
   const url           = new URL(linkWithSlash);
 
-  // Append affiliate tag
+  // Attach your affiliate tag
   url.searchParams.set('tag', process.env.AFFILIATE_TAG);
 
   return {
