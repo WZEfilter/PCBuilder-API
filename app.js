@@ -77,6 +77,7 @@ async function getPartsList(budget, useCase, requirements = '') {
 }
 
 app.post('/build', async (req, res) => {
+  console.log('✅ /build called with:', req.body);
   try {
     const { budget, useCase, additionalRequirements } = req.body;
     const items = await getPartsList(budget, useCase, additionalRequirements);
