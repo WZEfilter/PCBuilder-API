@@ -2,42 +2,48 @@
 import { getJson } from 'serpapi';
 
 export async function searchProduct(partName) {
-  // 1️⃣ Debug your affiliate tag
-  console.log('🔑 AFFILIATE_TAG:', process.env.AFFILIATE_TAG);
+  // 1️⃣ Log entry
+  console.log(`🔎 searchProduct() called for: "${partName}"`);
+  console.log(`   AFFILIATE_TAG: "${process.env.AFFILIATE_TAG}"`);
 
-  // 2️⃣ Perform a live Amazon search (no cache) on amazon.com
+  // 2️⃣ Fire the SerpAPI request
   const json = await getJson({
-    engine:        'amazon',           // use the Amazon engine
+    engine:        'amazon',
     api_key:       process.env.SERPAPI_KEY,
-    k:             partName,           // your search term :contentReference[oaicite:0]{index=0}
-    amazon_domain: 'amazon.com',       // ensure results come from amazon.com :contentReference[oaicite:1]{index=1}
-    no_cache:      true                // force fresh results
+    k:             partName,
+    amazon_domain: 'amazon.com',
+    no_cache:      true
   });
 
-  // 3️⃣ Log out the first 3 results so you can inspect titles & links
+  // 3️⃣ Dump the raw shopping_results
   console.log(
-    `🔴 SerpAPI raw shopping_results for "${partName}":`,
-    JSON.stringify(json.shopping_results?.slice(0, 3), null, 2)
+    `   raw shopping_results (first 2) for "${partName}":`,
+    JSON.stringify(json.shopping_results?.slice(0, 2), null, 2)
   );
 
   const results = json.shopping_results || [];
   const top     = results[0] || {};
 
-  // 4️⃣ Always return a link field (null if nothing found)
+  // 4️⃣ If no link, log and return null
   if (!top.link) {
-    console.warn(`⚠️ No Amazon result for "${partName}"`);
-    return { part: partName, title: top.title || null, price: top.price || null, link: null };
+    console.warn(`⚠️ No top.link for "${partName}", returning link:null`);
+    return {
+      part:  partName,
+      title: top.title || null,
+      price: top.price || null,
+      link:  null
+    };
   }
 
-  // 5️⃣ Normalize URL and append your affiliate tag
+  // 5️⃣ Normalize & tag
   const rawLink = top.link.endsWith('/') ? top.link : `${top.link}/`;
-  console.log('📦 raw Amazon URL before tagging:', rawLink);
+  console.log(`   rawLink before tag: ${rawLink}`);
 
   const url = new URL(rawLink);
   url.searchParams.set('tag', process.env.AFFILIATE_TAG);
-  console.log('🏷️ tagged URL:', url.toString());
+  console.log(`   tagged URL: ${url.toString()}`);
 
-  // 6️⃣ Return the enriched result
+  // 6️⃣ Return full result
   return {
     part:  partName,
     title: top.title,
